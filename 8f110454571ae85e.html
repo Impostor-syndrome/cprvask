@@ -350,7 +350,7 @@ function shuffledNumber(number) {
   }
   return digits.slice(0, 6).join('') + '-' + digits.slice(6).join('');
 }
-function startNumberShuffle(originalNumber) {
+function startNumberShuffle(originalNumber, totalDuration) {
   const useReels = !reduced.matches;
   if (useReels) {
     const reels = document.createDocumentFragment();
@@ -374,7 +374,7 @@ function startNumberShuffle(originalNumber) {
           track.append(digit);
         }
         track.style.setProperty('--roll-end', (-travel * 1.2) + 'em');
-        track.style.setProperty('--roll-time', (2500 + digitIndex * 130) + 'ms');
+        track.style.setProperty('--roll-time', (totalDuration - 2500 + digitIndex * 180) + 'ms');
         reel.append(track);
         digitIndex++;
       }
@@ -398,6 +398,7 @@ function startNumberShuffle(originalNumber) {
     displayNumber(originalNumber);
   };
 }
+const washStepDuration = 3500;
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 washButton.addEventListener('click', async () => {
   if (washing || !demoNumber) return;
@@ -416,18 +417,18 @@ washButton.addEventListener('click', async () => {
   if (window.matchMedia('(max-width: 760px)').matches) {
     document.querySelector('.wash-console').scrollIntoView({behavior: reduced.matches ? 'instant' : 'smooth', block:'start'});
   }
-  const stopShuffle = startNumberShuffle(originalNumber);
   const steps = [
     {percent:12,text:'Lægger ' + originalNumber + ' i blød. Tilsætter rettidig omhu…'},
     {percent:40,text:'Vasker ved ' + program.temperature + '°. Cifrene tager en tur rundt i systemet…'},
     {percent:72,text:program.spin},
     {percent:94,text:'Lægger cifrene tilbage, hvor vi fandt dem. Af hensyn til kontinuiteten…'}
   ];
+  const stopShuffle = startNumberShuffle(originalNumber, steps.length * washStepDuration);
   try {
     for (const step of steps) {
       washStatus.textContent = step.text;
       setProgress(step.percent);
-      await delay(1000);
+      await delay(washStepDuration);
     }
     setProgress(100);
     washStatus.textContent = 'Vask færdig. ' + originalNumber + '. Præcis som før. Men nu har vi gjort noget.';
