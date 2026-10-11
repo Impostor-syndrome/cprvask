@@ -211,6 +211,14 @@ OTHER DEALINGS IN THE FONT SOFTWARE.
 @media(min-width:1550px){.hero{padding-top:90px}.hero-grid{padding-bottom:80px}}
 @media(max-width:1000px){.nav-links{gap:17px}.hero-grid{gap:35px}.machine-stage{padding-right:12px}.machine-label{right:-6px}.benefit-layout,.demo-layout,.faq-layout{gap:40px}.price{padding:24px}.price.featured{padding:23px}.porthole{width:225px}.machine{padding:21px}.proof+.proof{padding-left:20px}}
 @media(max-width:760px){.wrap{width:89%}.nav{height:66px}.nav-links{display:none;position:absolute;top:66px;left:0;right:0;background:var(--navy);padding:22px 5.5%;border-bottom:1px solid #526176;flex-direction:column;align-items:stretch;gap:18px}.nav-links.open{display:flex}.nav-links>a:not(.button){font-size:15px;padding:4px 0}.menu-toggle{display:block}.hero{padding-top:43px}.hero-grid{grid-template-columns:1fr;gap:32px;padding-bottom:35px}.hero-copy{font-size:16px}.machine-stage{width:min(300px,100%);justify-self:center;padding-top:15px}.machine{padding:20px 23px}.porthole{width:205px;border-width:12px;margin:21px auto 16px}.display{font-size:11px}.machine-label{width:77px;height:77px;font-size:10px;top:129px;right:0}.machine-label strong{font-size:18px}.machine-brand{font-size:12px}.number-tag{font-size:14px;padding:12px}.machine-caption{font-size:10px}.machine-caption strong{font-size:10px}.machine-note{font-size:12px}.announcement{font-size:11px;margin-bottom:21px}.actions{gap:20px}.proof-strip{grid-template-columns:1fr 1fr}.proof{padding:20px 0}.proof+.proof{padding-left:18px}.proof:nth-child(3){border-left:0;padding-left:0}.proof:nth-child(n+3){border-top:1px solid #344154}.proof strong{font-size:24px}.proof span{font-size:11px}.claim-band{text-align:left;font-size:12px;padding:17px 0}.section{padding:59px 0}.process,.benefit-layout,.demo-layout,.prices,.quotes,.faq-layout,.real-world-grid{grid-template-columns:1fr;gap:30px}.process{gap:25px;margin-top:30px}.step{position:relative;padding-left:41px;padding-top:21px}.step-number{position:absolute;left:0;top:24px}.step h3{font-size:20px}.step p{max-width:65ch}.benefit-layout{gap:33px}.note-label{margin-top:18px}.benefit-list{gap:20px}.demo-layout{gap:35px}.demo-form select,.demo-form .button{max-width:none}.prices{gap:28px;margin-top:37px}.price{padding:28px}.price.featured{padding:27px}.price-description{min-height:0}.price-value{margin-top:16px}.price ul{margin-top:17px}.comparison{padding-top:0}.quotes{gap:27px}.quotes p{max-width:65ch}.faq-layout{gap:30px}.closing{padding:54px 0}.closing p{font-size:15px}.real-world{padding:35px 0}.real-world-grid{gap:25px}.footer-top,.footer-bottom{flex-direction:column;gap:23px}.footer-links{gap:20px}.site-footer{padding-top:33px}.wash-number{font-size:31px}.receipt dl{font-size:11px}.toast{bottom:14px}}
+
+.wash-number.reeling{display:flex;justify-content:center;align-items:center;gap:.025em;letter-spacing:0}
+.digit-reel{display:block;position:relative;width:.7em;height:1.2em;overflow:hidden;border-radius:4px;background:#203b50;flex:none}
+.digit-track{display:flex;flex-direction:column;will-change:transform;animation:digit-roll var(--roll-time) cubic-bezier(.12,.55,.22,1) forwards}
+.digit-track>span{display:block;flex:none;height:1.2em;line-height:1.2em;text-align:center}
+.digit-separator{width:.32em;flex:none;line-height:1.2em}
+@keyframes digit-roll{from{transform:translateY(0)}to{transform:translateY(var(--roll-end))}}
+
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 </head>
@@ -294,6 +302,7 @@ function notify(message) {
   toastTimer = setTimeout(() => { toast.hidden = true; }, 6500);
 }
 function displayNumber(number) {
+  numberDisplay.classList.remove('reeling');
   numberDisplay.textContent = number;
   machineNumber.textContent = number;
 }
@@ -341,6 +350,54 @@ function shuffledNumber(number) {
   }
   return digits.slice(0, 6).join('') + '-' + digits.slice(6).join('');
 }
+function startNumberShuffle(originalNumber) {
+  const useReels = !reduced.matches;
+  if (useReels) {
+    const reels = document.createDocumentFragment();
+    let digitIndex = 0;
+    for (const character of originalNumber) {
+      const reel = document.createElement('span');
+      reel.setAttribute('aria-hidden', 'true');
+      if (character === '-') {
+        reel.className = 'digit-separator';
+        reel.textContent = '-';
+      } else {
+        reel.className = 'digit-reel';
+        const track = document.createElement('span');
+        track.className = 'digit-track';
+        const start = Number(character);
+        // Each reel completes whole turns and lands back on its starting digit.
+        const travel = (3 + digitIndex % 3) * 10;
+        for (let position = 0; position <= travel; position++) {
+          const digit = document.createElement('span');
+          digit.textContent = String((start + position) % 10);
+          track.append(digit);
+        }
+        track.style.setProperty('--roll-end', (-travel * 1.2) + 'em');
+        track.style.setProperty('--roll-time', (2500 + digitIndex * 130) + 'ms');
+        reel.append(track);
+        digitIndex++;
+      }
+      reels.append(reel);
+    }
+    numberDisplay.replaceChildren(reels);
+    numberDisplay.classList.add('reeling');
+  }
+  // A calmer text shuffle preserves the interaction with reduced motion enabled.
+  // The accessible name remains the original number in both modes.
+  const scramble = setInterval(() => {
+    const shuffled = shuffledNumber(originalNumber);
+    machineNumber.textContent = shuffled;
+    if (!useReels || reduced.matches) {
+      numberDisplay.classList.remove('reeling');
+      numberDisplay.textContent = shuffled;
+    }
+  }, useReels ? 140 : 450);
+  return () => {
+    clearInterval(scramble);
+    displayNumber(originalNumber);
+  };
+}
 const delay = ms => new Promise(resolve => setTimeout(resolve, ms));
 washButton.addEventListener('click', async () => {
   if (washing || !demoNumber) return;
@@ -359,10 +416,7 @@ washButton.addEventListener('click', async () => {
   if (window.matchMedia('(max-width: 760px)').matches) {
     document.querySelector('.wash-console').scrollIntoView({behavior: reduced.matches ? 'instant' : 'smooth', block:'start'});
   }
-  // Keep the accessible number stable while the visual digits tumble.
-  const scramble = setInterval(() => {
-    if (!reduced.matches) displayNumber(shuffledNumber(originalNumber));
-  }, 120);
+  const stopShuffle = startNumberShuffle(originalNumber);
   const steps = [
     {percent:12,text:'Lægger ' + originalNumber + ' i blød. Tilsætter rettidig omhu…'},
     {percent:40,text:'Vasker ved ' + program.temperature + '°. Cifrene tager en tur rundt i systemet…'},
@@ -373,7 +427,7 @@ washButton.addEventListener('click', async () => {
     for (const step of steps) {
       washStatus.textContent = step.text;
       setProgress(step.percent);
-      await delay(reduced.matches ? 350 : 1000);
+      await delay(1000);
     }
     setProgress(100);
     washStatus.textContent = 'Vask færdig. ' + originalNumber + '. Præcis som før. Men nu har vi gjort noget.';
@@ -384,8 +438,7 @@ washButton.addEventListener('click', async () => {
     document.querySelector('#number-after').textContent = originalNumber;
     receipt.hidden = false;
   } finally {
-    clearInterval(scramble);
-    displayNumber(originalNumber);
+    stopShuffle();
     document.body.classList.remove('washing');
     washing = false;
     washButton.disabled = false;
