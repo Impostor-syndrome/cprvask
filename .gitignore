@@ -1,0 +1,14 @@
+# Local editor and design working files
+/.impeccable/
+/DESIGN.md
+/PRODUCT.md
+/codex.session
+*.session
+*.log
+.DS_Store
+
+# Local credentials and environment settings
+.env
+.env.*
+*.pem
+*.key
